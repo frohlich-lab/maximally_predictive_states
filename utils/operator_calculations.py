@@ -4,8 +4,9 @@ from scipy.sparse import csc_matrix as sparse_matrix
 from scipy.sparse.linalg import eigs
 from scipy.linalg import eig
 from scipy.sparse import diags,identity,coo_matrix,csr_matrix
-import msmtools.estimation as msm_estimation
-import msmtools.analysis as msm_analysis
+
+import deeptime.markov.tools.estimation as mk_estimation
+import deeptime.markov.tools.analysis as mk_analysis
 import stats
 from scipy.signal import find_peaks
 from scipy.signal import find_peaks
@@ -26,8 +27,8 @@ def segment_maskedArray(tseries,min_size=50):
     return segments
 
 
-def get_count_matrix(labels,lag,nstates):
-    observable_seqs = ma.compress_rows(ma.vstack([labels[:-lag],labels[lag:]]).T)
+def get_count_matrix(labels, delay, nstates):
+    observable_seqs = ma.compress_rows(ma.vstack([labels[:-delay], labels[delay:]]).T)
 
     row = observable_seqs[:,0]
     col = observable_seqs[:,1]
@@ -63,8 +64,8 @@ def tscales_samples(labels,delay,dt,size,n_modes=5,reversible=True):
     ts_traj = []
     for sample_traj in dtrajs:
         count_ms = get_count_ms(sample_traj,delay,nstates)
-        connected_count_matrix = msm_estimation.connected_cmatrix(count_ms)
-        P = msm_estimation.tmatrix(connected_count_matrix)
+        connected_count_matrix = mk_estimation.largest_connected_submatrix(count_ms)
+        P = mk_estimation.transition_matrix(connected_count_matrix)
         if reversible:
             R = get_reversible_transition_matrix(P)
             tscale = compute_tscales(R,delay,dt,k=n_modes+1)
@@ -77,10 +78,10 @@ def tscales_samples(labels,delay,dt,size,n_modes=5,reversible=True):
 def transition_matrix(labels,lag,return_connected=False):
     nstates = np.max(labels)+1
     count_matrix = get_count_matrix(labels,lag,nstates)
-    connected_count_matrix = msm_estimation.connected_cmatrix(count_matrix)
-    P = msm_estimation.tmatrix(connected_count_matrix)
+    connected_count_matrix = mk_estimation.largest_connected_submatrix(count_matrix)
+    P = mk_estimation.transition_matrix(connected_count_matrix)
     if return_connected:
-        lcs = msm_estimation.largest_connected_set(count_matrix)
+        lcs = mk_estimation.largest_connected_set(count_matrix)
         return lcs,P
     else:
         return P
@@ -129,8 +130,8 @@ def implied_tscale(labels,size,delay,dt,n_modes,reversible=True):
     dtrajs = get_split_trajs(labels,size)
     nstates = np.max(labels)+1
     count_ms = get_count_ms(dtrajs,delay,nstates)
-    connected_count_matrix = msm_estimation.connected_cmatrix(count_ms)
-    P = msm_estimation.tmatrix(connected_count_matrix)
+    connected_count_matrix = mk_estimation.largest_connected_submatrix(count_ms)
+    P = mk_estimation.transition_matrix(connected_count_matrix)
     if reversible:
         R = get_reversible_transition_matrix(P)
         tscale = compute_tscales(R,delay,dt,k=n_modes+1)
@@ -148,8 +149,8 @@ def get_bootstrapped_Ps(labels,delay,n_samples,size = 0):
     for k in range(n_samples):
         sample_trajs = [dtrajs[k] for k in np.random.randint(0,len(dtrajs),len(dtrajs))]
         count_ms = get_count_ms(sample_trajs,delay,nstates)
-        connected_count_matrix = msm_estimation.connected_cmatrix(count_ms)
-        P = msm_estimation.tmatrix(connected_count_matrix)
+        connected_count_matrix = mk_estimation.largest_connected_submatrix(count_ms)
+        P = mk_estimation.transition_matrix(connected_count_matrix)
         sample_Ps.append(P)
     return sample_Ps
 
@@ -173,8 +174,8 @@ def bootstrap_tscale_sample(labels,delay,dt,n_modes,size=0,reversible=True):
 
     sample_trajs = [dtrajs[k] for k in np.random.randint(0,len(dtrajs),len(dtrajs))]
     count_ms = get_count_ms(sample_trajs,delay,nstates)
-    connected_count_matrix = msm_estimation.connected_cmatrix(count_ms)
-    P = msm_estimation.tmatrix(connected_count_matrix)
+    connected_count_matrix = mk_estimation.connected_cmatrix(count_ms)
+    P = mk_estimation.transition_matrix(connected_count_matrix)
     if reversible:
         R = get_reversible_transition_matrix(P)
         tscale = compute_tscales(R,delay,dt,k=n_modes+1)
@@ -191,8 +192,8 @@ def bootstrap_tscales_delays(range_delays,labels,n_modes,dt,n_samples=1000,size=
     for kd,delay in enumerate(range_delays):
         try:
             count_ms = get_count_ms(sample_trajs,delay,nstates)
-            connected_count_matrix = msm_estimation.connected_cmatrix(count_ms)
-            P = msm_estimation.tmatrix(connected_count_matrix)
+            connected_count_matrix = mk_estimation.largest_connected_submatrix(count_ms)
+            P = mk_estimation.transition_matrix(connected_count_matrix)
             if reversible:
                 R = get_reversible_transition_matrix(P)
                 tscale = compute_tscales(R,delay,dt,k=n_modes+1)
@@ -224,7 +225,7 @@ def compute_implied_tscales(labels,range_delays,dt=1,n_modes=5,n_samples=1000,si
 
 
 def stationary_distribution(P):
-    probs = msm_analysis.statdist(P)
+    probs = mk_analysis.stationary_distribution(P)
     return probs
 
 

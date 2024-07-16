@@ -3,6 +3,7 @@ import numpy.ma as ma
 from numba import jit,prange
 import numpy as np
 
+
 def segment_maskedArray(tseries,min_size=50):
     '''
     Segments  time series in case it has missing data
@@ -21,6 +22,7 @@ def segment_maskedArray(tseries,min_size=50):
     segments = np.vstack(segs_)
     return segments
 
+
 @jit(nopython=True)
 def tm_seg(X,K):
     '''
@@ -36,6 +38,7 @@ def tm_seg(X,K):
         tm[t] = x_flat
     return tm
 
+
 def trajectory_matrix(X,K):
     min_seg=K+1
     segments = segment_maskedArray(X,min_seg)
@@ -44,6 +47,7 @@ def trajectory_matrix(X,K):
         traj_matrix[t0+int(np.floor(K/2)):tf-int(np.ceil(K/2)+1)] = ma.masked_invalid(tm_seg(ma.filled(X[t0:tf],np.nan),K))
     traj_matrix[traj_matrix==0]=ma.masked
     return traj_matrix
+
 
 def whitening(X):
     """
@@ -58,6 +62,7 @@ def whitening(X):
     U, Lambda, V = np.linalg.svd(Sigma)
     W = np.dot(np.diag(1.0 / np.sqrt(Lambda + 1e-5)), U.T)
     return U,X_mean,W,np.dot(X_centered, W.T)
+
 
 def embed_tseries(X,K,m=0,whiten=False,return_modes=False):
     '''
